@@ -14,23 +14,54 @@ module Zenmosaic
     module_function
 
     def render_hourly(preview_result:, profile_name:, output_dir:, downsample_native: DEFAULT_DOWNSAMPLE_NATIVE,
-                      compressed_scale: DEFAULT_COMPRESSED_SCALE, compressed_quality: DEFAULT_COMPRESSED_QUALITY)
+              compressed_scale: DEFAULT_COMPRESSED_SCALE, compressed_quality: DEFAULT_COMPRESSED_QUALITY,
+              progress_callback: nil)
       ensure_imagemagick_available!
 
       collections = Array(fetch_hash_value(preview_result, :collections, "collections"))
       destination = File.expand_path(output_dir.to_s.strip.empty? ? "." : output_dir.to_s)
       FileUtils.mkdir_p(destination)
 
-      collection_results = collections.map do |collection|
+      emit_progress(
+        progress_callback,
+        stage: "render",
+        status: "collections_started",
+        total_collections: collections.length,
+        message: "Processando colecoes"
+      )
+
+      collection_results = collections.each_with_index.map do |collection, collection_index|
+        collection_name = safe_string(fetch_hash_value(collection, :collection, "collection"))
+        emit_progress(
+          progress_callback,
+          stage: "render",
+          status: "collection_started",
+          collection: collection_name,
+          collection_index: collection_index + 1,
+          total_collections: collections.length,
+          message: "Renderizando colecao #{collection_name}"
+        )
+
         render_collection(
           collection: symbolize_keys(collection),
           profile_name: profile_name,
           output_dir: destination,
           downsample_native: Integer(downsample_native),
           compressed_scale: Float(compressed_scale),
-          compressed_quality: Integer(compressed_quality)
+          compressed_quality: Integer(compressed_quality),
+          progress_callback: progress_callback,
+          collection_index: collection_index + 1,
+          total_collections: collections.length
         )
       end
+
+      emit_progress(
+        progress_callback,
+        stage: "render",
+        status: "collections_completed",
+        total_collections: collections.length,
+        message: "Colecoes finalizadas"
+      )
 
       {
         profile_name: profile_name,
@@ -39,7 +70,8 @@ module Zenmosaic
       }
     end
 
-    def render_collection(collection:, profile_name:, output_dir:, downsample_native:, compressed_scale:, compressed_quality:)
+    def render_collection(collection:, profile_name:, output_dir:, downsample_native:, compressed_scale:, compressed_quality:,
+                progress_callback:, collection_index:, total_collections:)
       collection_name = safe_string(fetch_hash_value(collection, :collection, "collection"))
       items = Array(fetch_hash_value(collection, :items, "items")).map { |item| symbolize_keys(item) }
 
@@ -62,6 +94,18 @@ module Zenmosaic
 
       if items.empty?
         result[:warnings] << "Nenhum item de preview para renderizar"
+        emit_progress(
+          progress_callback,
+          stage: "render",
+          status: "collection_completed",
+          collection: collection_name,
+          collection_index: collection_index,
+          total_collections: total_collections,
+          attempted: result[:attempted],
+          plotted: result[:plotted],
+          failed: result[:failed],
+          message: "Colecao sem itens para renderizar"
+        )
         return result
       end
 
@@ -103,12 +147,27 @@ module Zenmosaic
 
         # Processar em ordem reversa da lista para manter prioridade visual das primeiras imagens.
         items.reverse_each.with_index do |item, index|
+          processed = index + 1
           begin
             image_path = safe_string(fetch_hash_value(item, :image_path, "image_path"))
             unless File.exist?(image_path)
               result[:failed] += 1
               result[:warnings] << "Arquivo de imagem nao encontrado: #{image_path}"
               result[:discarded_paths] << image_path || item[:filename]
+              emit_progress(
+                progress_callback,
+                stage: "render",
+                status: "item_processed",
+                collection: collection_name,
+                collection_index: collection_index,
+                total_collections: total_collections,
+                processed_items: processed,
+                total_items: items.length,
+                plotted: result[:plotted],
+                failed: result[:failed],
+                filename: item[:filename],
+                message: "Imagem descartada (arquivo nao encontrado)"
+              )
               next
             end
 
@@ -123,6 +182,20 @@ module Zenmosaic
               result[:failed] += 1
               result[:warnings] << "Transform invalido para item #{index}"
               result[:discarded_paths] << image_path || item[:filename]
+              emit_progress(
+                progress_callback,
+                stage: "render",
+                status: "item_processed",
+                collection: collection_name,
+                collection_index: collection_index,
+                total_collections: total_collections,
+                processed_items: processed,
+                total_items: items.length,
+                plotted: result[:plotted],
+                failed: result[:failed],
+                filename: item[:filename],
+                message: "Imagem descartada (transform invalido)"
+              )
               next
             end
 
@@ -178,10 +251,38 @@ module Zenmosaic
             )
 
             result[:plotted] += 1
+            emit_progress(
+              progress_callback,
+              stage: "render",
+              status: "item_processed",
+              collection: collection_name,
+              collection_index: collection_index,
+              total_collections: total_collections,
+              processed_items: processed,
+              total_items: items.length,
+              plotted: result[:plotted],
+              failed: result[:failed],
+              filename: item[:filename],
+              message: "Imagem renderizada"
+            )
           rescue StandardError => error
             result[:failed] += 1
             result[:warnings] << "Falha ao renderizar item #{index}: #{error.message}"
             result[:discarded_paths] << image_path || item[:filename]
+            emit_progress(
+              progress_callback,
+              stage: "render",
+              status: "item_processed",
+              collection: collection_name,
+              collection_index: collection_index,
+              total_collections: total_collections,
+              processed_items: processed,
+              total_items: items.length,
+              plotted: result[:plotted],
+              failed: result[:failed],
+              filename: item[:filename],
+              message: "Imagem descartada (erro na renderizacao)"
+            )
           end
         end
 
@@ -198,7 +299,27 @@ module Zenmosaic
       result[:output_path_native] = native_path
       result[:output_path_compressed] = compressed_path
       result[:discarded_paths] = result[:discarded_paths].compact.uniq
+      emit_progress(
+        progress_callback,
+        stage: "render",
+        status: "collection_completed",
+        collection: collection_name,
+        collection_index: collection_index,
+        total_collections: total_collections,
+        attempted: result[:attempted],
+        plotted: result[:plotted],
+        failed: result[:failed],
+        output_path_native: result[:output_path_native],
+        output_path_compressed: result[:output_path_compressed],
+        message: "Colecao finalizada"
+      )
       result
+    end
+
+    def emit_progress(callback, payload)
+      callback&.call(payload)
+    rescue StandardError
+      nil
     end
 
     def compute_global_rotation(items)

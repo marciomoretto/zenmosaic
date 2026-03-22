@@ -157,7 +157,12 @@ module Zenmosaic
                              downsample_native: 1, compressed_scale: 0.35, compressed_quality: 88,
                              export_geojson: true,
                              output_dir: nil, export_manifest: true,
-                             pitch_tolerance_deg: 2.0, default_height_agl_m: 70.0)
+                             pitch_tolerance_deg: 2.0, default_height_agl_m: 70.0,
+                             progress_callback: nil,
+                             &progress_block)
+      progress_callback ||= progress_block
+
+      emit_progress(progress_callback, stage: "preview", status: "started", message: "Construindo preview")
       preview_bundle = build_preview(
         profile: profile,
         profile_data: profile_data,
@@ -170,17 +175,21 @@ module Zenmosaic
         pitch_tolerance_deg: pitch_tolerance_deg,
         default_height_agl_m: default_height_agl_m
       )
+      emit_progress(progress_callback, stage: "preview", status: "completed", message: "Preview concluido")
 
       profile_name = preview_bundle.dig(:request, :profile_name)
 
+      emit_progress(progress_callback, stage: "render", status: "started", message: "Renderizacao iniciada")
       mosaics = MosaicRenderer.render_hourly(
         preview_result: preview_bundle[:preview],
         profile_name: profile_name,
         output_dir: output_dir || ".",
         downsample_native: downsample_native,
         compressed_scale: compressed_scale,
-        compressed_quality: compressed_quality
+        compressed_quality: compressed_quality,
+        progress_callback: progress_callback
       )
+      emit_progress(progress_callback, stage: "render", status: "completed", message: "Renderizacao concluida")
 
       footprint_discarded_paths = Array(preview_bundle.dig(:footprints, :collection, :discarded_paths, :all))
       preview_discarded_paths = Array(preview_bundle.dig(:collection, :discarded_paths))
@@ -248,6 +257,12 @@ module Zenmosaic
       candidate = common_segments.join(File::SEPARATOR)
       candidate = File::SEPARATOR if candidate.empty?
       File.expand_path(candidate)
+    end
+
+    def emit_progress(callback, payload)
+      callback&.call(payload)
+    rescue StandardError
+      nil
     end
   end
 end

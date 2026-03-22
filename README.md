@@ -21,8 +21,16 @@ Fluxo principal:
 
 ## Instalacao
 
+Via path local (desenvolvimento):
+
 ```ruby
 gem "zenmosaic", path: "../zenmosaic"
+```
+
+Via GitHub:
+
+```ruby
+gem "zenmosaic", git: "https://github.com/marciomoretto/zenmosaic.git"
 ```
 
 ```bash
@@ -144,12 +152,59 @@ result = Zenmosaic.render_mosaic(
 )
 ```
 
+Com feedback de progresso (callback opcional):
+
+```ruby
+result = Zenmosaic.render_mosaic(
+  profile: "air3s_wide_70m_rj",
+  profile_data: profile_data,
+  paths: [
+    "/dados/missao/img_0001.jpg",
+    "/dados/missao/img_0002.jpg"
+  ],
+  output_dir: "/tmp/zen_out",
+  progress_callback: lambda { |event|
+    puts "[#{event[:stage]}][#{event[:status]}] #{event[:message]}"
+  }
+)
+```
+
+Tambem e possivel passar bloco:
+
+```ruby
+result = Zenmosaic.render_mosaic(
+  profile: "air3s_wide_70m_rj",
+  profile_data: profile_data,
+  paths: ["/dados/missao/img_0001.jpg"]
+) do |event|
+  puts "#{event[:status]} #{event[:processed_items]}/#{event[:total_items]}"
+end
+```
+
+Status de progresso emitidos:
+
+- `started`
+- `completed`
+- `collections_started`
+- `collection_started`
+- `item_processed`
+- `collection_completed`
+- `collections_completed`
+
+Campos uteis no payload (variam conforme o status):
+
+- `stage`, `status`, `message`
+- `collection`, `collection_index`, `total_collections`
+- `processed_items`, `total_items`, `plotted`, `failed`, `filename`
+- `output_path_native`, `output_path_compressed`
+
 Retorno:
 
 - `result[:request]`
 - `result[:mosaics]`
 - `result[:collection][:output_path_native]`
 - `result[:collection][:output_path_compressed]`
+- `result[:discarded_paths]`
 
 ## Testes
 

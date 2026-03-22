@@ -259,4 +259,43 @@ class ZenmosaicTest < Minitest::Test
       assert File.exist?(collection[:output_path_compressed])
     end
   end
+
+  def test_render_mosaic_reports_progress
+    skip "ImageMagick nao disponivel" unless imagemagick_available?
+
+    Dir.mktmpdir do |root|
+      output = File.join(root, "mosaicos")
+
+      image_path = File.join(root, "foto.jpg")
+      create_sample_image(image_path)
+      append_dji_xmp(image_path)
+
+      events = []
+
+      Zenmosaic.render_mosaic(
+        profile: "air3s_wide_70m_rj",
+        profile_data: PROFILE_DATA,
+        paths: [image_path],
+        export_geojson: false,
+        output_dir: output,
+        export_manifest: false,
+        max_images_to_plot: 12,
+        downsample_native: 1,
+        compressed_scale: 0.5,
+        compressed_quality: 85,
+        progress_callback: lambda { |payload|
+          events << payload
+        }
+      )
+
+      statuses = events.map { |evt| evt[:status] }
+      assert_includes statuses, "started"
+      assert_includes statuses, "collections_started"
+      assert_includes statuses, "collection_started"
+      assert_includes statuses, "item_processed"
+      assert_includes statuses, "collection_completed"
+      assert_includes statuses, "collections_completed"
+      assert_includes statuses, "completed"
+    end
+  end
 end
