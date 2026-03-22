@@ -14,10 +14,10 @@ class FootprintPipelineTest < Minitest::Test
       result = Zenmosaic::FootprintPipeline.build_hourly(
         profile_name: "air3s_wide_70m_rj",
         profile: profile,
-        folders: [
+        collections: [
           {
-            folder: "10.00",
-            folder_path: dir,
+            collection: "10.00",
+            collection_path: dir,
             rows: [
               {
                 filename: "10.00/a.jpg",
@@ -40,15 +40,15 @@ class FootprintPipelineTest < Minitest::Test
       assert result[:fov_width_rad] > 0
       assert result[:fov_height_rad] > 0
 
-      folder = result[:folders].first
-      assert_nil folder[:error]
-      assert_equal "10.00", folder[:folder]
-      assert_equal 1, folder[:images_count]
-      assert_equal 0, folder[:dropped_counts][:invalid_gps]
-      assert folder[:geojson_path]
-      assert File.exist?(folder[:geojson_path])
+      collection = result[:collections].first
+      assert_nil collection[:error]
+      assert_equal "10.00", collection[:collection]
+      assert_equal 1, collection[:images_count]
+      assert_equal 0, collection[:dropped_counts][:invalid_gps]
+      assert collection[:geojson_path]
+      assert File.exist?(collection[:geojson_path])
 
-      row = folder[:rows].first
+      row = collection[:rows].first
       assert_equal "Polygon", row[:geometry][:type]
       assert_equal 5, row[:geometry][:coordinates][0].length
       assert row[:x0].is_a?(Numeric)
@@ -62,10 +62,10 @@ class FootprintPipelineTest < Minitest::Test
     result = Zenmosaic::FootprintPipeline.build_hourly(
       profile_name: "air3s_wide_70m_rj",
       profile: profile,
-      folders: [
+      collections: [
         {
-          folder: "11.00",
-          folder_path: "/tmp",
+          collection: "11.00",
+          collection_path: "/tmp",
           rows: [
             {
               filename: "a.jpg",
@@ -91,21 +91,21 @@ class FootprintPipelineTest < Minitest::Test
       export_geojson: false
     )
 
-    folder = result[:folders].first
-    assert_equal 0, folder[:images_count]
-    assert_equal 1, folder[:dropped_counts][:invalid_gps]
-    assert_equal 1, folder[:dropped_counts][:non_zenital]
-    assert_includes folder[:warnings].join(" "), "Nenhuma foto zenital"
+    collection = result[:collections].first
+    assert_equal 0, collection[:images_count]
+    assert_equal 1, collection[:dropped_counts][:invalid_gps]
+    assert_equal 1, collection[:dropped_counts][:non_zenital]
+    assert_includes collection[:warnings].join(" "), "Nenhuma foto zenital"
   end
 
   def test_build_hourly_uses_default_height_when_relative_altitude_is_missing
     result = Zenmosaic::FootprintPipeline.build_hourly(
       profile_name: "air3s_wide_70m_rj",
       profile: profile,
-      folders: [
+      collections: [
         {
-          folder: "12.00",
-          folder_path: "/tmp",
+          collection: "12.00",
+          collection_path: "/tmp",
           rows: [
             {
               filename: "c.jpg",
@@ -122,9 +122,9 @@ class FootprintPipelineTest < Minitest::Test
       default_height_agl_m: 72.0
     )
 
-    folder = result[:folders].first
-    assert_equal 1, folder[:images_count]
-    assert_includes folder[:warnings].join(" "), "Altitude relativa DJI nao encontrada"
-    assert_in_delta 72.0, folder[:rows].first[:height_agl_m], 0.0001
+    collection = result[:collections].first
+    assert_equal 1, collection[:images_count]
+    assert_includes collection[:warnings].join(" "), "Altitude relativa DJI nao encontrada"
+    assert_in_delta 72.0, collection[:rows].first[:height_agl_m], 0.0001
   end
 end

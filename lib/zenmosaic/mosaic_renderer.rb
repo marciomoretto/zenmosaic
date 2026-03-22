@@ -17,13 +17,13 @@ module Zenmosaic
                       compressed_scale: DEFAULT_COMPRESSED_SCALE, compressed_quality: DEFAULT_COMPRESSED_QUALITY)
       ensure_imagemagick_available!
 
-      folders = Array(fetch_hash_value(preview_result, :folders, "folders"))
+      collections = Array(fetch_hash_value(preview_result, :collections, "collections"))
       destination = File.expand_path(output_dir.to_s.strip.empty? ? "." : output_dir.to_s)
       FileUtils.mkdir_p(destination)
 
-      folder_results = folders.map do |folder|
-        render_folder(
-          folder: symbolize_keys(folder),
+      collection_results = collections.map do |collection|
+        render_collection(
+          collection: symbolize_keys(collection),
           profile_name: profile_name,
           output_dir: destination,
           downsample_native: Integer(downsample_native),
@@ -35,16 +35,16 @@ module Zenmosaic
       {
         profile_name: profile_name,
         output_dir: destination,
-        folders: folder_results
+        collections: collection_results
       }
     end
 
-    def render_folder(folder:, profile_name:, output_dir:, downsample_native:, compressed_scale:, compressed_quality:)
-      folder_name = safe_string(fetch_hash_value(folder, :folder, "folder"))
-      items = Array(fetch_hash_value(folder, :items, "items")).map { |item| symbolize_keys(item) }
+    def render_collection(collection:, profile_name:, output_dir:, downsample_native:, compressed_scale:, compressed_quality:)
+      collection_name = safe_string(fetch_hash_value(collection, :collection, "collection"))
+      items = Array(fetch_hash_value(collection, :items, "items")).map { |item| symbolize_keys(item) }
 
       result = {
-        folder: folder_name,
+        collection: collection_name,
         attempted: items.length,
         plotted: 0,
         failed: 0,
@@ -91,9 +91,9 @@ module Zenmosaic
       result[:canvas_height_px] = canvas_height_px
 
       safe_profile = safe_file_fragment(profile_name)
-      safe_folder = safe_file_fragment(folder_name)
-      native_path = File.join(output_dir, "mosaico_resolucao_nativa_#{safe_profile}_#{safe_folder}.png")
-      compressed_path = File.join(output_dir, "mosaico_comprimido_#{safe_profile}_#{safe_folder}.jpg")
+      safe_collection = safe_file_fragment(collection_name)
+      native_path = File.join(output_dir, "mosaico_resolucao_nativa_#{safe_profile}_#{safe_collection}.png")
+      compressed_path = File.join(output_dir, "mosaico_comprimido_#{safe_profile}_#{safe_collection}.jpg")
 
       Dir.mktmpdir("zenmosaic-render-") do |tmpdir|
         canvas_path = File.join(tmpdir, "canvas.png")

@@ -16,7 +16,7 @@ module Zenmosaic
 
     module_function
 
-    def build_hourly(profile_name:, profile:, folders:, export_geojson: false, output_dir: nil,
+    def build_hourly(profile_name:, profile:, collections:, export_geojson: false, output_dir: nil,
                      pitch_tolerance_deg: 2.0, default_height_agl_m: 70.0)
       normalized_profile = normalize_profile(profile)
       fov = compute_fov(
@@ -26,9 +26,9 @@ module Zenmosaic
 
       projector = CoordinateTransformer.build(normalized_profile[:target_crs])
 
-      folder_results = Array(folders).map do |folder_data|
-        process_folder(
-          folder_data: folder_data,
+      collection_results = Array(collections).map do |collection_data|
+        process_collection(
+          collection_data: collection_data,
           profile_name: profile_name,
           profile: normalized_profile,
           projector: projector,
@@ -47,20 +47,20 @@ module Zenmosaic
         fov_diag_deg: normalized_profile[:fov_diag_deg],
         fov_width_rad: fov[:fov_width_rad],
         fov_height_rad: fov[:fov_height_rad],
-        folders: folder_results
+        collections: collection_results
       }
     end
 
-    def process_folder(folder_data:, profile_name:, profile:, projector:, fov_width_rad:, fov_height_rad:,
+    def process_collection(collection_data:, profile_name:, profile:, projector:, fov_width_rad:, fov_height_rad:,
                        export_geojson:, output_dir:, pitch_tolerance_deg:, default_height_agl_m:)
-      folder_name = safe_string(fetch_hash_value(folder_data, :folder, "folder"))
-      folder_path = fetch_hash_value(folder_data, :folder_path, "folder_path")
-      input_rows = Array(fetch_hash_value(folder_data, :rows, "rows")).map { |row| symbolize_keys(row) }
+      collection_name = safe_string(fetch_hash_value(collection_data, :collection, "collection"))
+      collection_path = fetch_hash_value(collection_data, :collection_path, "collection_path")
+      input_rows = Array(fetch_hash_value(collection_data, :rows, "rows")).map { |row| symbolize_keys(row) }
 
-      result = base_folder_result(folder_name: folder_name, folder_path: folder_path, input_count: input_rows.length)
+      result = base_collection_result(collection_name: collection_name, collection_path: collection_path, input_count: input_rows.length)
 
       if input_rows.empty?
-        result[:warnings] << "Nenhuma imagem encontrada nesta pasta"
+        result[:warnings] << "Nenhuma imagem encontrada na colecao"
         return result
       end
 
@@ -74,7 +74,7 @@ module Zenmosaic
       working_rows.each do |row|
         row[:fov_width_rad] = fov_width_rad
         row[:fov_height_rad] = fov_height_rad
-        row[:horario] = folder_name
+        row[:collection] = collection_name
       end
 
       lat_col = find_first_column(working_rows, LATITUDE_CANDIDATES, required: true)
@@ -224,11 +224,11 @@ module Zenmosaic
       )
 
       if export_geojson
-        target_dir = resolve_geojson_output_dir(output_dir: output_dir, folder_path: folder_path)
-        result[:geojson_path] = export_folder_geojson(
+        target_dir = resolve_geojson_output_dir(output_dir: output_dir, collection_path: collection_path)
+        result[:geojson_path] = export_collection_geojson(
           rows: projected_rows,
           profile_name: profile_name,
-          folder_name: folder_name,
+          collection_name: collection_name,
           target_crs: profile[:target_crs],
           output_dir: target_dir
         )
@@ -321,17 +321,17 @@ module Zenmosaic
       }
     end
 
-    def export_folder_geojson(rows:, profile_name:, folder_name:, target_crs:, output_dir:)
+    def export_collection_geojson(rows:, profile_name:, collection_name:, target_crs:, output_dir:)
       FileUtils.mkdir_p(output_dir)
 
       safe_profile = safe_file_fragment(profile_name)
-      safe_folder = safe_file_fragment(folder_name)
-      path = File.join(output_dir, "drone_footprints_#{safe_profile}_#{safe_folder}.geojson")
+      safe_collection = safe_file_fragment(collection_name)
+      path = File.join(output_dir, "drone_footprints_#{safe_profile}_#{safe_collection}.geojson")
 
       geojson = {
         type: "FeatureCollection",
         profile: profile_name,
-        folder: folder_name,
+        collection: collection_name,
         target_crs: target_crs,
         features: rows.map { |row| row_to_feature(row) }
       }
@@ -346,7 +346,7 @@ module Zenmosaic
         geometry: row[:geometry],
         properties: {
           filename: row[:filename],
-          folder: row[:folder],
+          collection: row[:collection],
           gps_latitude: row[:gps_latitude],
           gps_longitude: row[:gps_longitude],
           height_agl_m: row[:height_agl_m],
@@ -362,12 +362,12 @@ module Zenmosaic
       }
     end
 
-    def resolve_geojson_output_dir(output_dir:, folder_path:)
+    def resolve_geojson_output_dir(output_dir:, collection_path:)
       output_text = safe_string(output_dir)
       return File.expand_path(output_text) unless output_text.empty?
 
-      folder_text = safe_string(folder_path)
-      return File.expand_path(folder_text) unless folder_text.empty?
+      collection_text = safe_string(collection_path)
+      return File.expand_path(collection_text) unless collection_text.empty?
 
       File.expand_path(".")
     end
@@ -488,10 +488,10 @@ module Zenmosaic
       text.gsub(/[^a-zA-Z0-9._-]/, "_").gsub(".", "_")
     end
 
-    def base_folder_result(folder_name:, folder_path:, input_count:)
+    def base_collection_result(collection_name:, collection_path:, input_count:)
       {
-        folder: folder_name,
-        folder_path: folder_path,
+        collection: collection_name,
+        collection_path: collection_path,
         input_count: input_count,
         images_count: 0,
         camera_models: [],

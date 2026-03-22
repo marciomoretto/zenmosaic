@@ -4,24 +4,22 @@ require "pathname"
 
 module Zenmosaic
   class ProcessingRequest
-    attr_reader :profile_name, :folder_name, :folder_path, :profile
+    attr_reader :profile_name, :paths, :profile
 
-    def initialize(profile_name:, folder_name:, profiles:, images_root: nil)
+    def initialize(profile_name:, paths:, profile:, images_root: nil)
       @profile_name = profile_name.to_s.strip
-      @folder_name = folder_name.to_s.strip
-      @profiles = profiles || {}
+      @paths = Array(paths)
+      @profile = profile
       @images_root = images_root
 
       validate!
-      @profile = @profiles.fetch(@profile_name)
-      @folder_path = resolve_folder_path
+      @paths = resolve_paths
     end
 
     def to_h
       {
         profile_name: profile_name,
-        folder_name: folder_name,
-        folder_path: folder_path,
+        input_paths: paths,
         profile: profile
       }
     end
@@ -30,17 +28,27 @@ module Zenmosaic
 
     def validate!
       raise Error, "profile deve ser informado" if profile_name.empty?
-      raise Error, "pasta deve ser informada" if folder_name.empty?
-      raise Error, "profiles deve ser um Hash" unless @profiles.is_a?(Hash)
-      raise Error, "profile '#{profile_name}' nao existe" unless @profiles.key?(profile_name)
+      raise Error, "paths deve ser um Array" unless @paths.is_a?(Array)
+      raise Error, "paths deve conter ao menos um arquivo" if @paths.empty?
+      raise Error, "profile_data deve ser um Hash" unless @profile.is_a?(Hash)
     end
 
-    def resolve_folder_path
-      folder = Pathname.new(folder_name)
-      return folder.expand_path.to_s if folder.absolute?
-      return folder_name if @images_root.nil? || @images_root.to_s.strip.empty?
+    def resolve_paths
+      base_root = @images_root.to_s.strip
 
-      Pathname.new(@images_root.to_s).join(folder).expand_path.to_s
+      @paths.map do |raw_path|
+        clean_path = raw_path.to_s.strip
+        next if clean_path.empty?
+
+        pathname = Pathname.new(clean_path)
+        resolved = if pathname.absolute? || base_root.empty?
+                     pathname
+                   else
+                     Pathname.new(base_root).join(pathname)
+                   end
+
+        resolved.expand_path.to_s
+      end.compact.uniq
     end
   end
 end

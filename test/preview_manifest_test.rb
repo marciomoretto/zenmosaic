@@ -29,9 +29,9 @@ class PreviewManifestTest < Minitest::Test
 
       footprints_result = {
         profile_name: "air3s_wide_70m_rj",
-        folders: [
+        collections: [
           {
-            folder: folder_name,
+            collection: folder_name,
             rows: [
               {
                 filename: "09.45/frame_01.jpg",
@@ -58,21 +58,21 @@ class PreviewManifestTest < Minitest::Test
       )
 
       assert_equal "air3s_wide_70m_rj", result[:profile_name]
-      assert_equal 1, result[:folders].length
+      assert_equal 1, result[:collections].length
 
-      folder = result[:folders][0]
-      assert_equal folder_name, folder[:folder]
-      assert_equal 1, folder[:attempted]
-      assert_equal 1, folder[:plotted]
-      assert_equal 0, folder[:failed]
-      assert_equal 0, folder[:skipped]
-      assert folder[:bounds]
-      assert_equal 1, folder[:items].length
-      assert folder[:manifest_path]
-      assert File.exist?(folder[:manifest_path])
+      collection = result[:collections][0]
+      assert_equal folder_name, collection[:collection]
+      assert_equal 1, collection[:attempted]
+      assert_equal 1, collection[:plotted]
+      assert_equal 0, collection[:failed]
+      assert_equal 0, collection[:skipped]
+      assert collection[:bounds]
+      assert_equal 1, collection[:items].length
+      assert collection[:manifest_path]
+      assert File.exist?(collection[:manifest_path])
 
-      manifest_json = JSON.parse(File.read(folder[:manifest_path]))
-      assert_equal folder_name, manifest_json["folder"]
+      manifest_json = JSON.parse(File.read(collection[:manifest_path]))
+      assert_equal folder_name, manifest_json["collection"]
       assert_equal 1, manifest_json["plotted"]
     end
   end

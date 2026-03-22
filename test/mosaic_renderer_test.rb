@@ -49,9 +49,9 @@ class MosaicRendererTest < Minitest::Test
       create_sample_image(image_path)
 
       preview_result = {
-        folders: [
+        collections: [
           {
-            folder: "09.45",
+            collection: "09.45",
             items: [
               {
                 filename: "09.45/frame_01.jpg",
@@ -88,13 +88,13 @@ class MosaicRendererTest < Minitest::Test
         compressed_quality: 85
       )
 
-      folder = result[:folders].first
-      assert_equal "09.45", folder[:folder]
-      assert_equal 1, folder[:attempted]
-      assert_equal 1, folder[:plotted]
-      assert_equal 0, folder[:failed]
-      assert File.exist?(folder[:output_path_native])
-      assert File.exist?(folder[:output_path_compressed])
+      collection = result[:collections].first
+      assert_equal "09.45", collection[:collection]
+      assert_equal 1, collection[:attempted]
+      assert_equal 1, collection[:plotted]
+      assert_equal 0, collection[:failed]
+      assert File.exist?(collection[:output_path_native])
+      assert File.exist?(collection[:output_path_compressed])
     end
   end
 end

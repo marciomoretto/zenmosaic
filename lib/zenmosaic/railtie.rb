@@ -9,16 +9,12 @@ module Zenmosaic
     config.zenmosaic = ActiveSupport::OrderedOptions.new
     config.zenmosaic.enabled = true
     config.zenmosaic.label_prefix = "Zen"
-    config.zenmosaic.profiles = Zenmosaic::DefaultProfiles.all
-    config.zenmosaic.default_profile = "air3s_wide_70m_rj"
     config.zenmosaic.images_root = nil
 
     initializer "zenmosaic.configure" do |app|
       Zenmosaic.configure do |config|
         config.enabled = app.config.zenmosaic.enabled
         config.label_prefix = app.config.zenmosaic.label_prefix
-        config.profiles = app.config.zenmosaic.profiles
-        config.default_profile = app.config.zenmosaic.default_profile
         config.images_root = app.config.zenmosaic.images_root
       end
     end

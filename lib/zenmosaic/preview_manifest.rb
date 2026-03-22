@@ -14,12 +14,12 @@ module Zenmosaic
 
     def build_hourly(footprints_result:, images_base_dir:, max_images_to_plot: DEFAULT_MAX_IMAGES_TO_PLOT,
                      downsample: DEFAULT_DOWNSAMPLE, output_dir: nil, export_manifest: false)
-      folders = Array(fetch_hash_value(footprints_result, :folders, "folders"))
+      collections = Array(fetch_hash_value(footprints_result, :collections, "collections"))
       profile_name = fetch_hash_value(footprints_result, :profile_name, "profile_name")
 
-      folder_results = folders.map do |folder|
-        build_folder_preview(
-          folder: symbolize_keys(folder),
+      collection_results = collections.map do |collection|
+        build_collection_preview(
+          collection: symbolize_keys(collection),
           images_base_dir: images_base_dir,
           max_images_to_plot: Integer(max_images_to_plot),
           downsample: Integer(downsample),
@@ -33,17 +33,17 @@ module Zenmosaic
         profile_name: profile_name,
         max_images_to_plot: Integer(max_images_to_plot),
         downsample: Integer(downsample),
-        folders: folder_results
+        collections: collection_results
       }
     end
 
-    def build_folder_preview(folder:, images_base_dir:, max_images_to_plot:, downsample:, profile_name:, output_dir:, export_manifest:)
-      folder_name = safe_string(fetch_hash_value(folder, :folder, "folder"))
-      folder_rows = Array(fetch_hash_value(folder, :rows, "rows"))
+    def build_collection_preview(collection:, images_base_dir:, max_images_to_plot:, downsample:, profile_name:, output_dir:, export_manifest:)
+      collection_name = safe_string(fetch_hash_value(collection, :collection, "collection"))
+      collection_rows = Array(fetch_hash_value(collection, :rows, "rows"))
 
-      folder_result = {
-        folder: folder_name,
-        images_dir: File.expand_path(File.join(images_base_dir.to_s, folder_name)),
+      collection_result = {
+        collection: collection_name,
+        images_dir: File.expand_path(File.join(images_base_dir.to_s, collection_name)),
         attempted: 0,
         plotted: 0,
         failed: 0,
@@ -54,14 +54,14 @@ module Zenmosaic
         manifest_path: nil
       }
 
-      images_dir = folder_result[:images_dir]
+      images_dir = collection_result[:images_dir]
       unless Dir.exist?(images_dir)
-        folder_result[:warnings] << "Pasta de imagens nao encontrada: #{images_dir}"
-        return folder_result
+        collection_result[:warnings] << "Diretorio de imagens nao encontrado: #{images_dir}"
+        return collection_result
       end
 
-      selected_rows = folder_rows.first(max_images_to_plot)
-      folder_result[:attempted] = selected_rows.length
+      selected_rows = collection_rows.first(max_images_to_plot)
+      collection_result[:attempted] = selected_rows.length
 
       plot_points_x = []
       plot_points_y = []
@@ -71,8 +71,8 @@ module Zenmosaic
         filename = safe_string(fetch_hash_value(row, :filename, "filename", :file_name, "file_name"))
 
         if filename.empty?
-          folder_result[:failed] += 1
-          folder_result[:warnings] << "Linha sem filename"
+          collection_result[:failed] += 1
+          collection_result[:warnings] << "Linha sem filename"
           next
         end
 
@@ -81,8 +81,8 @@ module Zenmosaic
         image_path ||= resolve_image_path(images_dir, filename)
 
         if image_path.nil?
-          folder_result[:failed] += 1
-          folder_result[:warnings] << "Nao encontrei arquivo para: #{filename}"
+          collection_result[:failed] += 1
+          collection_result[:warnings] << "Nao encontrei arquivo para: #{filename}"
           next
         end
 
@@ -90,7 +90,7 @@ module Zenmosaic
         coordinates = polygon_coordinates(geometry)
 
         if coordinates.empty?
-          folder_result[:skipped] += 1
+          collection_result[:skipped] += 1
           next
         end
 
@@ -99,7 +99,7 @@ module Zenmosaic
         plot_points_x.concat(x_values)
         plot_points_y.concat(y_values)
 
-        folder_result[:items] << {
+        collection_result[:items] << {
           filename: filename,
           filename_only: filename_only,
           image_path: image_path,
@@ -115,18 +115,18 @@ module Zenmosaic
         }
       end
 
-      folder_result[:plotted] = folder_result[:items].length
-      folder_result[:bounds] = compute_bounds(plot_points_x, plot_points_y)
+      collection_result[:plotted] = collection_result[:items].length
+      collection_result[:bounds] = compute_bounds(plot_points_x, plot_points_y)
 
       if export_manifest
-        folder_result[:manifest_path] = export_folder_manifest(
-          folder_result: folder_result,
+        collection_result[:manifest_path] = export_collection_manifest(
+          collection_result: collection_result,
           profile_name: profile_name,
           output_dir: output_dir
         )
       end
 
-      folder_result
+      collection_result
     end
 
     def resolve_image_path(images_dir, filename)
@@ -208,18 +208,18 @@ module Zenmosaic
       [xs.min, ys.min, xs.max, ys.max]
     end
 
-    def export_folder_manifest(folder_result:, profile_name:, output_dir:)
+    def export_collection_manifest(collection_result:, profile_name:, output_dir:)
       destination_dir = safe_string(output_dir)
-      destination_dir = folder_result[:images_dir] if destination_dir.empty?
+      destination_dir = collection_result[:images_dir] if destination_dir.empty?
       destination_dir = File.expand_path(destination_dir)
 
       FileUtils.mkdir_p(destination_dir)
 
       safe_profile = safe_file_fragment(profile_name)
-      safe_folder = safe_file_fragment(folder_result[:folder])
-      path = File.join(destination_dir, "drone_preview_#{safe_profile}_#{safe_folder}.json")
+      safe_collection = safe_file_fragment(collection_result[:collection])
+      path = File.join(destination_dir, "drone_preview_#{safe_profile}_#{safe_collection}.json")
 
-      File.write(path, JSON.pretty_generate(folder_result))
+      File.write(path, JSON.pretty_generate(collection_result))
       path
     end
 
