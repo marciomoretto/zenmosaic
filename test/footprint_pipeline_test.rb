@@ -95,6 +95,9 @@ class FootprintPipelineTest < Minitest::Test
     assert_equal 0, collection[:images_count]
     assert_equal 1, collection[:dropped_counts][:invalid_gps]
     assert_equal 1, collection[:dropped_counts][:non_zenital]
+    assert_includes collection[:discarded_paths][:invalid_gps], "a.jpg"
+    assert_includes collection[:discarded_paths][:non_zenital], "b.jpg"
+    assert_equal ["a.jpg", "b.jpg"], collection[:discarded_paths][:all].sort
     assert_includes collection[:warnings].join(" "), "Nenhuma foto zenital"
   end
 

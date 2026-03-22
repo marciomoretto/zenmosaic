@@ -61,6 +61,7 @@ module Zenmosaic
 
       if input_rows.empty?
         result[:warnings] << "Nenhuma imagem encontrada na colecao"
+        finalize_discarded_paths!(result)
         return result
       end
 
@@ -87,13 +88,15 @@ module Zenmosaic
         row[:gps_longitude] = to_float_or_nil(row[lon_col])
       end
 
-      working_rows, dropped_invalid_gps = partition_rows(working_rows) do |row|
+      working_rows, dropped_invalid_gps_rows = partition_rows(working_rows) do |row|
         row[:gps_latitude] && row[:gps_longitude]
       end
-      result[:dropped_counts][:invalid_gps] = dropped_invalid_gps
+      result[:dropped_counts][:invalid_gps] = dropped_invalid_gps_rows.length
+      result[:discarded_paths][:invalid_gps] = dropped_invalid_gps_rows.map { |row| row_path(row) }.compact
 
       if working_rows.empty?
         result[:warnings] << "Nenhuma linha com GPS valido"
+        finalize_discarded_paths!(result)
         return result
       end
 
@@ -104,14 +107,16 @@ module Zenmosaic
         row[:gimbal_pitch_deg] = to_float_or_nil(row[gimbal_pitch_col])
       end
 
-      working_rows, dropped_non_zenital = partition_rows(working_rows) do |row|
+      working_rows, dropped_non_zenital_rows = partition_rows(working_rows) do |row|
         pitch = row[:gimbal_pitch_deg]
         pitch && ((pitch.abs - 90.0).abs <= pitch_tolerance_deg)
       end
-      result[:dropped_counts][:non_zenital] = dropped_non_zenital
+      result[:dropped_counts][:non_zenital] = dropped_non_zenital_rows.length
+      result[:discarded_paths][:non_zenital] = dropped_non_zenital_rows.map { |row| row_path(row) }.compact
 
       if working_rows.empty?
         result[:warnings] << "Nenhuma foto zenital restante neste horario"
+        finalize_discarded_paths!(result)
         return result
       end
 
@@ -125,13 +130,15 @@ module Zenmosaic
         row[:flight_yaw_deg] = to_float_or_nil(row[flight_yaw_col])
       end
 
-      working_rows, dropped_missing_yaw = partition_rows(working_rows) do |row|
+      working_rows, dropped_missing_yaw_rows = partition_rows(working_rows) do |row|
         row[:gimbal_yaw_deg] && row[:flight_yaw_deg]
       end
-      result[:dropped_counts][:missing_yaw] = dropped_missing_yaw
+      result[:dropped_counts][:missing_yaw] = dropped_missing_yaw_rows.length
+      result[:discarded_paths][:missing_yaw] = dropped_missing_yaw_rows.map { |row| row_path(row) }.compact
 
       if working_rows.empty?
         result[:warnings] << "Nenhuma foto restante com yaw valido"
+        finalize_discarded_paths!(result)
         return result
       end
 
@@ -149,8 +156,9 @@ module Zenmosaic
           row[:height_agl_m] = row[:relative_altitude_m] && (row[:relative_altitude_m] + profile[:agl_offset_m])
         end
 
-        working_rows, dropped_missing_height = partition_rows(working_rows) { |row| row[:height_agl_m] }
-        result[:dropped_counts][:missing_height] = dropped_missing_height
+        working_rows, dropped_missing_height_rows = partition_rows(working_rows) { |row| row[:height_agl_m] }
+        result[:dropped_counts][:missing_height] = dropped_missing_height_rows.length
+        result[:discarded_paths][:missing_height] = dropped_missing_height_rows.map { |row| row_path(row) }.compact
 
         expected_rel = profile[:expected_relative_altitude_m]
         if expected_rel
@@ -178,11 +186,12 @@ module Zenmosaic
 
       if working_rows.empty?
         result[:warnings] << "Nenhuma foto restante com altura AGL valida"
+        finalize_discarded_paths!(result)
         return result
       end
 
       projected_rows = []
-      projection_errors = 0
+      projection_error_paths = []
 
       working_rows.each do |row|
         begin
@@ -195,16 +204,19 @@ module Zenmosaic
             )
           )
         rescue StandardError
-          projection_errors += 1
+          projection_error_paths << row_path(row)
         end
       end
 
-      result[:dropped_counts][:projection_errors] = projection_errors
+      result[:dropped_counts][:projection_errors] = projection_error_paths.length
+      result[:discarded_paths][:projection_errors] = projection_error_paths.compact
       result[:rows] = projected_rows
       result[:images_count] = projected_rows.length
+      finalize_discarded_paths!(result)
 
       if projected_rows.empty?
         result[:warnings] << "Nenhuma geometria de footprint foi gerada"
+        finalize_discarded_paths!(result)
         return result
       end
 
@@ -234,10 +246,23 @@ module Zenmosaic
         )
       end
 
+      finalize_discarded_paths!(result)
       result
     rescue Error => error
       result[:error] = error.message
+      finalize_discarded_paths!(result)
       result
+    end
+
+    def finalize_discarded_paths!(result)
+      discarded = result[:discarded_paths] || {}
+      groups = discarded.each_with_object([]) do |(key, value), all|
+        next if key.to_s == "all"
+
+        all.concat(Array(value))
+      end
+      discarded[:all] = groups.compact.uniq
+      result[:discarded_paths] = discarded
     end
 
     def normalize_profile(profile)
@@ -424,17 +449,21 @@ module Zenmosaic
 
     def partition_rows(rows)
       kept = []
-      dropped = 0
+      dropped = []
 
       rows.each do |row|
         if yield(row)
           kept << row
         else
-          dropped += 1
+          dropped << row
         end
       end
 
       [kept, dropped]
+    end
+
+    def row_path(row)
+      safe_string(fetch_hash_value(row, :filename, "filename", :file_path, "file_path", :file_name, "file_name"))
     end
 
     def fetch_hash_value(hash, *keys)
@@ -502,6 +531,14 @@ module Zenmosaic
           missing_yaw: 0,
           missing_height: 0,
           projection_errors: 0
+        },
+        discarded_paths: {
+          invalid_gps: [],
+          non_zenital: [],
+          missing_yaw: [],
+          missing_height: [],
+          projection_errors: [],
+          all: []
         },
         altitude_check: nil,
         expected_footprint_70m_m: nil,

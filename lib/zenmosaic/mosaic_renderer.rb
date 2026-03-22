@@ -58,6 +58,8 @@ module Zenmosaic
         warnings: []
       }
 
+      result[:discarded_paths] = []
+
       if items.empty?
         result[:warnings] << "Nenhum item de preview para renderizar"
         return result
@@ -106,6 +108,7 @@ module Zenmosaic
             unless File.exist?(image_path)
               result[:failed] += 1
               result[:warnings] << "Arquivo de imagem nao encontrado: #{image_path}"
+              result[:discarded_paths] << image_path || item[:filename]
               next
             end
 
@@ -119,6 +122,7 @@ module Zenmosaic
             if [x0, y0, half_w, half_h].any?(&:nil?) || half_w <= 0 || half_h <= 0
               result[:failed] += 1
               result[:warnings] << "Transform invalido para item #{index}"
+              result[:discarded_paths] << image_path || item[:filename]
               next
             end
 
@@ -177,6 +181,7 @@ module Zenmosaic
           rescue StandardError => error
             result[:failed] += 1
             result[:warnings] << "Falha ao renderizar item #{index}: #{error.message}"
+            result[:discarded_paths] << image_path || item[:filename]
           end
         end
 
@@ -192,6 +197,7 @@ module Zenmosaic
 
       result[:output_path_native] = native_path
       result[:output_path_compressed] = compressed_path
+      result[:discarded_paths] = result[:discarded_paths].compact.uniq
       result
     end
 

@@ -51,7 +51,8 @@ module Zenmosaic
         bounds: nil,
         items: [],
         warnings: [],
-        manifest_path: nil
+        manifest_path: nil,
+        discarded_paths: []
       }
 
       images_dir = collection_result[:images_dir]
@@ -82,6 +83,7 @@ module Zenmosaic
 
         if image_path.nil?
           collection_result[:failed] += 1
+          collection_result[:discarded_paths] << filename
           collection_result[:warnings] << "Nao encontrei arquivo para: #{filename}"
           next
         end
@@ -117,6 +119,7 @@ module Zenmosaic
 
       collection_result[:plotted] = collection_result[:items].length
       collection_result[:bounds] = compute_bounds(plot_points_x, plot_points_y)
+      collection_result[:discarded_paths] = collection_result[:discarded_paths].compact.uniq
 
       if export_manifest
         collection_result[:manifest_path] = export_collection_manifest(

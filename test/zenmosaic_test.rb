@@ -254,6 +254,7 @@ class ZenmosaicTest < Minitest::Test
 
       collection = result[:collection]
       assert_equal 1, collection[:plotted]
+      assert_equal [], result[:discarded_paths]
       assert File.exist?(collection[:output_path_native])
       assert File.exist?(collection[:output_path_compressed])
     end

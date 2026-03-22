@@ -182,12 +182,17 @@ module Zenmosaic
         compressed_quality: compressed_quality
       )
 
+      footprint_discarded_paths = Array(preview_bundle.dig(:footprints, :collection, :discarded_paths, :all))
+      preview_discarded_paths = Array(preview_bundle.dig(:collection, :discarded_paths))
+      mosaic_discarded_paths = Array(mosaics.dig(:collections, 0, :discarded_paths))
+
       {
         request: preview_bundle[:request],
         footprints: preview_bundle[:footprints],
         preview: preview_bundle[:preview],
         mosaics: mosaics,
-        collection: mosaics[:collections][0]
+        collection: mosaics[:collections][0],
+        discarded_paths: (footprint_discarded_paths + preview_discarded_paths + mosaic_discarded_paths).compact.uniq
       }
     end
 
