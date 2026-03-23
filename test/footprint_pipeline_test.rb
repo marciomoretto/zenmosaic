@@ -130,4 +130,40 @@ class FootprintPipelineTest < Minitest::Test
     assert_includes collection[:warnings].join(" "), "Altitude relativa DJI nao encontrada"
     assert_in_delta 72.0, collection[:rows].first[:height_agl_m], 0.0001
   end
+
+  def test_build_hourly_applies_profile_optional_defaults
+    minimal_profile = {
+      fov_diag_deg: 84.0,
+      aspect_ratio: [4, 3]
+    }
+
+    result = Zenmosaic::FootprintPipeline.build_hourly(
+      profile_name: "custom",
+      profile: minimal_profile,
+      collections: [
+        {
+          collection: "13.00",
+          collection_path: "/tmp",
+          rows: [
+            {
+              filename: "d.jpg",
+              dji_gps_latitude: -23.0,
+              dji_gps_longitude: -45.0,
+              dji_gimbal_pitch_degree: -90.0,
+              dji_gimbal_yaw_degree: 10.0,
+              dji_flight_yaw_degree: 2.0,
+              dji_relative_altitude: 70.0
+            }
+          ]
+        }
+      ],
+      export_geojson: false
+    )
+
+    collection = result[:collections].first
+    assert_equal "EPSG:32723", result[:target_crs]
+    assert_equal 1, collection[:images_count]
+    assert_equal 70.0, collection[:altitude_check][:expected_relative_altitude_m]
+    assert_equal 5.0, collection[:altitude_check][:tolerance_m]
+  end
 end

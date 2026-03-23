@@ -5,6 +5,11 @@ require "fileutils"
 
 module Zenmosaic
   module FootprintPipeline
+    DEFAULT_AGL_OFFSET_M = 0.0
+    DEFAULT_ALT_TOLERANCE_M = 5.0
+    DEFAULT_TARGET_CRS = "EPSG:32723"
+    DEFAULT_EXPECTED_RELATIVE_ALTITUDE_M = 70.0
+
     FILENAME_CANDIDATES = %w[filename file_name image_name].freeze
     CAMERA_MODEL_CANDIDATES = %w[camera_model camera_model_name model].freeze
     LATITUDE_CANDIDATES = %w[dji_gps_latitude dji_gpslatitude gps_latitude].freeze
@@ -282,15 +287,15 @@ module Zenmosaic
       raise Error, "profile.aspect_ratio invalido" if width_ar.nil? || height_ar.nil? || width_ar <= 0 || height_ar <= 0
 
       target_crs = safe_string(profile_hash[:target_crs])
-      raise Error, "profile.target_crs deve ser informado" if target_crs.empty?
+      target_crs = DEFAULT_TARGET_CRS if target_crs.empty?
 
       {
         fov_diag_deg: fov_diag,
         aspect_ratio: [width_ar, height_ar],
         target_crs: target_crs,
-        agl_offset_m: to_float_or_nil(profile_hash[:agl_offset_m]) || 0.0,
-        expected_relative_altitude_m: to_float_or_nil(profile_hash[:expected_relative_altitude_m]),
-        alt_tolerance_m: to_float_or_nil(profile_hash[:alt_tolerance_m]) || 5.0
+        agl_offset_m: to_float_or_nil(profile_hash[:agl_offset_m]) || DEFAULT_AGL_OFFSET_M,
+        expected_relative_altitude_m: to_float_or_nil(profile_hash[:expected_relative_altitude_m]) || DEFAULT_EXPECTED_RELATIVE_ALTITUDE_M,
+        alt_tolerance_m: to_float_or_nil(profile_hash[:alt_tolerance_m]) || DEFAULT_ALT_TOLERANCE_M
       }
     end
 

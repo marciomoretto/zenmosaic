@@ -6,13 +6,8 @@ require "test_helper"
 
 class ZenmosaicTest < Minitest::Test
   PROFILE_DATA = {
-    expected_camera_models: nil,
     fov_diag_deg: 84.0,
-    aspect_ratio: [4, 3],
-    agl_offset_m: 0.0,
-    expected_relative_altitude_m: 70.0,
-    alt_tolerance_m: 5.0,
-    target_crs: "EPSG:32723"
+    aspect_ratio: [4, 3]
   }.freeze
 
   def executable_available?(name)
@@ -90,7 +85,7 @@ class ZenmosaicTest < Minitest::Test
 
     assert_equal "air3s_wide_70m_rj", request.profile_name
     assert_equal ["/tmp/zenmosaic_batches/amostras/foto_01.jpg"], request.paths
-    assert_equal "EPSG:32723", request.profile[:target_crs]
+    assert_equal [4, 3], request.profile[:aspect_ratio]
   end
 
   def test_build_processing_request_accepts_explicit_profile

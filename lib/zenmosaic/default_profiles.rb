@@ -4,29 +4,16 @@ module Zenmosaic
   module DefaultProfiles
     ALL = {
       "air3s_wide_70m_rj" => {
-        expected_camera_models: nil,
         fov_diag_deg: 84.0,
-        aspect_ratio: [4, 3],
-        agl_offset_m: 0.0,
-        expected_relative_altitude_m: 70.0,
-        alt_tolerance_m: 5.0,
-        target_crs: "EPSG:32723"
+        aspect_ratio: [4, 3]
       },
       "mavic3pro_wide_sp" => {
-        expected_camera_models: nil,
         fov_diag_deg: 84.0,
-        aspect_ratio: [4, 3],
-        agl_offset_m: 0.0,
-        alt_tolerance_m: 5.0,
-        target_crs: "EPSG:32723"
+        aspect_ratio: [4, 3]
       },
       "mavic3pro_mediumtele_sp" => {
-        expected_camera_models: nil,
         fov_diag_deg: 35.0,
-        aspect_ratio: [4, 3],
-        agl_offset_m: 0.0,
-        alt_tolerance_m: 5.0,
-        target_crs: "EPSG:32723"
+        aspect_ratio: [4, 3]
       }
     }.freeze
 

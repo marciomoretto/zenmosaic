@@ -56,15 +56,17 @@ Os dados tecnicos devem ser passados pelo cliente da gem via `profile_data`.
 
 ```ruby
 profile_data = {
-  expected_camera_models: nil,
   fov_diag_deg: 84.0,
-  aspect_ratio: [4, 3],
-  agl_offset_m: 0.0,
-  expected_relative_altitude_m: 70.0,
-  alt_tolerance_m: 5.0,
-  target_crs: "EPSG:32723"
+  aspect_ratio: [4, 3]
 }
 ```
+
+Atributos opcionais (se nao informados, usam defaults):
+
+- `agl_offset_m`: `0.0`
+- `expected_relative_altitude_m`: `70.0`
+- `alt_tolerance_m`: `5.0`
+- `target_crs`: `"EPSG:32723"`
 
 Se `profile_data` nao for informado, a gem usa profiles internos por nome (`profile:`).
 
